@@ -213,7 +213,17 @@ def get_answer(query):
     initial_response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": """You are College Buddy, an advanced AI assistant designed to help students with their academic queries. Your primary function is to analyze and provide insights based on the context of uploaded documents."""},
+            {"role": "system", "content": """You are College Buddy, an advanced AI assistant designed to help students with their academic queries. Your primary function is to analyze and provide insights based on the context of uploaded documents. Please adhere to the following guidelines:
+1. Focus on delivering accurate, relevant information derived from the provided context.
+2. If the context doesn't contain sufficient information to answer a query, state this clearly and offer to help with what is available.
+3. Maintain a friendly, supportive tone appropriate for assisting students.
+4. Provide concise yet comprehensive answers, breaking down complex concepts when necessary.
+5. If asked about topics beyond the scope of the provided context, politely redirect the conversation to the available information.
+6. Encourage critical thinking by guiding students towards understanding rather than simply providing direct answers.
+7. Respect academic integrity by not writing essays or completing assignments on behalf of students.
+8. Additional Resources: Suggest any additional resources or videos for further learning.
+   Include citations for the title of the video the information is from and the timestamp where relevant information is presented.
+"""},
             {"role": "user", "content": f"Context: {truncated_context}\n\nQuestion: {query}"}
         ]
     )
@@ -233,7 +243,17 @@ def get_answer(query):
     final_response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": """You are College Buddy, an advanced AI assistant designed to help students with their academic queries. Your task is to provide a comprehensive answer based on the initial response and the related document information."""},
+            {"role": "system", "content": """You are College Buddy, an advanced AI assistant designed to help students with their academic queries. Your primary function is to analyze and provide insights based on the context of uploaded documents. Please adhere to the following guidelines:
+1. Focus on delivering accurate, relevant information derived from the provided context.
+2. If the context doesn't contain sufficient information to answer a query, state this clearly and offer to help with what is available.
+3. Maintain a friendly, supportive tone appropriate for assisting students.
+4. Provide concise yet comprehensive answers, breaking down complex concepts when necessary.
+5. If asked about topics beyond the scope of the provided context, politely redirect the conversation to the available information.
+6. Encourage critical thinking by guiding students towards understanding rather than simply providing direct answers.
+7. Respect academic integrity by not writing essays or completing assignments on behalf of students.
+8. Additional Resources: Suggest any additional resources or videos for further learning.
+   Include citations for the title of the video the information is from and the timestamp where relevant information is presented.
+"""},
             {"role": "user", "content": f"Initial Answer: {initial_answer}\n\nRelated Document: {related_doc}\n\nPlease provide a final answer that incorporates information from the related document, if relevant."}
         ]
     )
@@ -241,6 +261,7 @@ def get_answer(query):
     final_answer = final_response.choices[0].message.content.strip()
     
     return final_answer, related_doc, all_keywords
+
 
 # Streamlit Interface
 st.set_page_config(page_title="College Buddy Assistant", layout="wide")
@@ -252,6 +273,7 @@ conn = get_database_connection()
 init_db(conn)
 load_initial_data()  # Load initial data
 test_db_connection()  # Test database connection
+
 
 # Sidebar for file upload and metadata
 with st.sidebar:
@@ -271,6 +293,16 @@ with st.sidebar:
         st.subheader("Uploaded Documents")
         st.text(f"Total token count: {total_token_count}")
 
+    # Database details
+    st.header("Database Contents")
+    if st.button("Show/Hide Database"):
+        documents = get_all_documents()
+        if documents:
+            df = pd.DataFrame(documents, columns=['ID', 'Title', 'Tags', 'Links'])
+            st.dataframe(df)
+        else:
+            st.write("The database is empty.")
+
 # Main content area
 st.header("Popular Questions")
 # Initialize selected questions in session state
@@ -280,67 +312,53 @@ if 'selected_questions' not in st.session_state:
 # Display popular questions
 for question in st.session_state.selected_questions:
     if st.button(question, key=question):
-        with st.spinner("Searching for the best answer..."):
-            answer, related_doc, keywords = get_answer(question)
-            st.subheader("Answer:")
-            st.write(answer)
-            
-            st.subheader("Related Keywords:")
-            st.write(", ".join(keywords))
-            
-            st.subheader("Related Document:")
-            if related_doc:
-                with st.expander(f"Document: {related_doc[1]}"):
-                    st.write(f"ID: {related_doc[0]}")
-                    st.write(f"Title: {related_doc[1]}")
-                    st.write(f"Tags: {related_doc[2]}")
-                    st.write(f"Link: {related_doc[3]}")
-                    
-                    # Highlight matching keywords in tags
-                    highlighted_tags = related_doc[2]
-                    for keyword in keywords:
-                        highlighted_tags = highlighted_tags.replace(keyword, f"**{keyword}**")
-                    st.markdown(f"Matched Tags: {highlighted_tags}")
-            else:
-                st.write("No related document found.")
-        # Add to chat history
-        if 'chat_history' not in st.session_state:
-            st.session_state.chat_history = []
-        st.session_state.chat_history.append((question, answer))
+        st.session_state.current_question = question
 
 st.header("Ask Your Own Question")
 user_query = st.text_input("What would you like to know about the uploaded documents?")
+
 if st.button("Get Answer"):
     if user_query:
-        with st.spinner("Searching for the best answer..."):
-            answer, related_doc, keywords = get_answer(user_query)
-            st.subheader("Answer:")
-            st.write(answer)
-            
-            st.subheader("Related Keywords:")
-            st.write(", ".join(keywords))
-            
-            st.subheader("Related Document:")
-            if related_doc:
-                with st.expander(f"Document: {related_doc[1]}"):
-                    st.write(f"ID: {related_doc[0]}")
-                    st.write(f"Title: {related_doc[1]}")
-                    st.write(f"Tags: {related_doc[2]}")
-                    st.write(f"Link: {related_doc[3]}")
-                    
-                    # Highlight matching keywords in tags
-                    highlighted_tags = related_doc[2]
-                    for keyword in keywords:
-                        highlighted_tags = highlighted_tags.replace(keyword, f"**{keyword}**")
-                    st.markdown(f"Matched Tags: {highlighted_tags}")
-            else:
-                st.write("No related document found.")
-        # Add to chat history
-        if 'chat_history' not in st.session_state:
-            st.session_state.chat_history = []
-        st.session_state.chat_history.append((user_query, answer))
-    else:
-        st.warning("Please enter a question before searching.")
+        st.session_state.current_question = user_query
+    elif 'current_question' not in st.session_state:
+        st.warning("Please enter a question or select a popular question before searching.")
+
+# Display the answer
+if 'current_question' in st.session_state:
+    with st.spinner("Searching for the best answer..."):
+        answer, related_doc, keywords = get_answer(st.session_state.current_question)
+        
+        st.subheader("Question:")
+        st.write(st.session_state.current_question)
+        st.subheader("Answer:")
+        st.write(answer)
+        
+        st.subheader("Related Keywords:")
+        st.write(", ".join(keywords))
+        
+        st.subheader("Related Document:")
+        if related_doc:
+            with st.expander(f"Document: {related_doc[1]}"):
+                st.write(f"ID: {related_doc[0]}")
+                st.write(f"Title: {related_doc[1]}")
+                st.write(f"Tags: {related_doc[2]}")
+                st.write(f"Link: {related_doc[3]}")
+                
+                # Highlight matching keywords in tags
+                highlighted_tags = related_doc[2]
+                for keyword in keywords:
+                    highlighted_tags = highlighted_tags.replace(keyword, f"**{keyword}**")
+                st.markdown(f"Matched Tags: {highlighted_tags}")
+        else:
+            st.write("No related document found.")
+    
+    # Add to chat history
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    st.session_state.chat_history.append((st.session_state.current_question, answer))
+    
+    # Clear the current question
+    del st.session_state.current_question
 
 # Add a section for displaying recent questions and answers
 if 'chat_history' in st.session_state and st.session_state.chat_history:
@@ -348,13 +366,3 @@ if 'chat_history' in st.session_state and st.session_state.chat_history:
     for i, (q, a) in enumerate(reversed(st.session_state.chat_history[-5:])):
         with st.expander(f"Q: {q}"):
             st.write(f"A: {a}")
-
-# Add a section to display the database contents
-st.header("Database Contents")
-if st.button("Show Database"):
-    documents = get_all_documents()
-    if documents:
-        df = pd.DataFrame(documents, columns=['ID', 'Title', 'Tags', 'Links'])
-        st.dataframe(df)
-    else:
-        st.write("The database is empty.")
