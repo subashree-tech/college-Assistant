@@ -58,10 +58,10 @@ def init_db(conn):
                  (id INTEGER PRIMARY KEY, title TEXT, tags TEXT, links TEXT)''')
     conn.commit()
 
-@st.cache_data
 def load_initial_data():
-    conn = get_database_connection()
-    data = [
+    try:
+        conn = get_database_connection()
+        data = [
         (1, "TEXAS TECH", "Universities, Texas Tech University, College Life, Student Wellness, Financial Tips for Students, Campus Activities, Study Strategies", "https://www.ttu.edu/"),
         (2, "ADVISING", "Advising, Campus Advising, Registration, Financial Management, Raider Success Hub, Degree Works, Visual Schedule Builder", "https://www.depts.ttu.edu/advising/current-students/advising/"),
         (3, "COURSE PREFIXES", "courses, Undergraduate Degrees, Academic Programs, Degree Concentrations, College Majors, University Programs, Bachelor's Degrees", "https://www.depts.ttu.edu/advising/current-students/course-prefixes/"),
@@ -85,9 +85,12 @@ def load_initial_data():
         (21, "Texas Tech University Students Handbook-chunk 16", "Students Handbook, Student Organization Training, Campus Grounds Use, Facility Reservations, Amplification Equipment, Expressive Activities, Student Records", "https://www.depts.ttu.edu/dos/Studenthandbook2022forward/Student-Handbook-2023-2024.pdf"),
         (22, "Texas Tech University Students Handbook-chunk 17", "Students Handbook, Student Conduct Definitions, University Policies, Behavioral Intervention, Sexual Misconduct Definitions, Disciplinary Actions, Student Records", "https://www.depts.ttu.edu/dos/Studenthandbook2022forward/Student-Handbook-2023-2024.pdf")
     ]
-    c = conn.cursor()
-    c.executemany("INSERT OR REPLACE INTO documents (id, title, tags, links) VALUES (?, ?, ?, ?)", data)
-    conn.commit()
+        c = conn.cursor()
+        c.executemany("INSERT OR REPLACE INTO documents (id, title, tags, links) VALUES (?, ?, ?, ?)", data)
+        conn.commit()
+        st.success("Initial data loaded successfully")
+    except Exception as e:
+        st.error(f"Error loading initial data: {str(e)}")
 
 def insert_document(id, title, tags, links):
     if tags.strip() and links.strip():
@@ -104,6 +107,16 @@ def get_all_documents():
     c = conn.cursor()
     c.execute("SELECT id, title, tags, links FROM documents WHERE tags != '' AND links != ''")
     return c.fetchall()
+
+def test_db_connection():
+    try:
+        conn = get_database_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM documents")
+        count = c.fetchone()[0]
+        st.write(f"Number of documents in database: {count}")
+    except Exception as e:
+        st.error(f"Database connection error: {str(e)}")
 
 # Function to extract text from DOCX
 def extract_text_from_docx(file):
@@ -225,12 +238,9 @@ def get_answer(query):
         ]
     )
    
-    
     final_answer = final_response.choices[0].message.content.strip()
     
     return final_answer, related_doc, all_keywords
-
-
 
 # Streamlit Interface
 st.set_page_config(page_title="College Buddy Assistant", layout="wide")
@@ -240,7 +250,8 @@ st.markdown("Welcome to College Buddy! I am here to help you stay organized, fin
 # Initialize database connection
 conn = get_database_connection()
 init_db(conn)
-
+load_initial_data()  # Load initial data
+test_db_connection()  # Test database connection
 
 # Sidebar for file upload and metadata
 with st.sidebar:
