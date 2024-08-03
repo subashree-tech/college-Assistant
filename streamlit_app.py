@@ -17,7 +17,7 @@ PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 INDEX_NAME = "college-buddy"
 
 # Initialize OpenAI
-openai.api_key = OPENAI_API_KEY
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Initialize Pinecone
